@@ -1,0 +1,38 @@
+export const projects = [
+  {
+    id: 'uretim-yonetim-sistemi',
+    title: 'ÜRETİM YÖNETİM SİSTEMİ',
+    shortTitle: 'Üretim Yönetim Sistemi',
+    description: 'Fabrika üretim süreçlerini uçtan uca yönetmek amacıyla geliştirilen masaüstü tabanlı yönetim sistemi. Stok, üretim, reçete, satın alma, kalite kontrol, depo ve kullanıcı yetkilendirme süreçlerinin merkezi olarak yönetilmesini sağlar.',
+    technologies: ['C#', '.NET', 'WinForms', 'DevExpress', 'SQL Server', 'LINQ to SQL'],
+    features: ['Kullanıcı ve yetkilendirme yönetimi', 'Stok yönetimi', 'Reçete yönetimi', 'Üretim emirleri', 'Üretim takibi', 'Satın alma', 'Malzeme kabul', 'Kalite kontrol', 'Görsel kalite kontrol', 'Depo / mamul yönetimi', 'Raporlama'],
+    github: 'https://github.com/fatmanurturk/ChocolateFactory',
+  },
+  {
+    id: 'human-resources-management-system',
+    title: 'Human Resources Management System',
+    shortTitle: 'Human Resources Management System (HRMS)',
+    description: 'Çalışan yönetimi, izin takibi, bordro ve performans değerlendirme süreçlerini dijitalleştiren web tabanlı insan kaynakları sistemi.',
+    technologies: ['C#', '.NET Framework', 'SQLite', 'DevExpress'],
+    features: ['Çalışan yönetimi', 'İzin takibi', 'Bordro süreçleri', 'Performans değerlendirme'],
+    github: 'https://github.com/fatmanurturk/HumanResourcesSystem',
+  },
+  {
+    id: 'used-books-sales-platform',
+    title: 'Used Books Sales Platform',
+    shortTitle: 'Used Books Sales Platform',
+    description: 'Kullanıcıların ikinci el kitapları kolayca alıp satabilmesini sağlayan web uygulaması. Akıllı öneri ve dinamik ürün yönetimi modülleri içerir.',
+    technologies: ['Node.js', 'MongoDB', 'Cursor AI'],
+    features: ['Kitap listeleme', 'Dinamik ürün yönetimi', 'Akıllı öneri sistemi'],
+    github: 'https://github.com/fatmanurturk/KitapSatisApp',
+  },
+  {
+    id: 'zirve-nature-sports-platform',
+    title: 'Zirve — Nature Sports Volunteering Platform',
+    shortTitle: 'Zirve Volunteering Platform',
+    description: 'Gönüllüleri organizasyonlarla buluşturan, etkinlik başvurusu, kulüp profilleri ve rozet sistemi sunan full-stack platform.',
+    technologies: ['FastAPI', 'PostgreSQL', 'Next.js', 'Tailwind CSS', 'Swift / SwiftUI'],
+    features: ['Etkinlik keşfi', 'Gönüllü başvuruları', 'Kulüp profilleri', 'Rozet ve oyunlaştırma'],
+    github: 'https://github.com/fatmanurturk/Zirve',
+  },
+];
