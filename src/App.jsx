@@ -1,9 +1,10 @@
 import { useEffect, useState } from 'react';
 import { ArrowUpRight, Code2, Menu, X } from 'lucide-react';
 
+import { supabase } from './lib/supabase';
+
 import { profile } from './data/profile';
-import { skills } from './data/skills';
-import { projects } from './data/projects';
+import { projects as staticProjects } from './data/projects';
 import { experience } from './data/experience';
 
 
@@ -159,9 +160,18 @@ const translatedProjects = {
 };
 
 function getProjectText(project, language) {
-  return language === 'en' && translatedProjects[project.id]
-    ? translatedProjects[project.id].en
-    : { title: project.shortTitle || project.title, description: project.description, features: project.features };
+  const translationKey = project.slug || project.id;
+
+  return language === 'en' && translatedProjects[translationKey]
+    ? translatedProjects[translationKey].en
+    : {
+        title: project.shortTitle || project.title,
+        description:
+          project.description ||
+          project.short_description ||
+          '',
+        features: project.features || [],
+      };
 }
 
 function scrollToSection(id) {
@@ -175,7 +185,7 @@ function scrollToSection(id) {
    NAVBAR
 ========================================================= */
 
-function Navbar({ activeSection, language, onToggleLanguage }) {
+function Navbar({ activeSection, language, onToggleLanguage, profileData }) {
   const [open, setOpen] = useState(false);
 
   const navigate = (id) => {
@@ -192,7 +202,7 @@ function Navbar({ activeSection, language, onToggleLanguage }) {
           onClick={() => navigate('home')}
           aria-label="Ana sayfaya git"
         >
-          {profile.monogram}
+          {profileData.monogram}
         </button>
 
         <nav
@@ -252,8 +262,15 @@ function Navbar({ activeSection, language, onToggleLanguage }) {
    HERO
 ========================================================= */
 
-function Hero({ language }) {
+function Hero({ language, profileData, skillsData }) {
   const copy = ui[language];
+  const featuredSkills = skillsData.length > 0
+    ? skillsData.slice(0, 6)
+    : [
+        { name: 'C# / .NET', category: 'Backend' },
+        { name: 'React', category: 'Frontend' },
+        { name: 'SQL Server', category: 'Veritabanı' },
+      ];
 
   return (
     <section
@@ -268,15 +285,15 @@ function Hero({ language }) {
         </p>
 
         <h1>
-          {profile.name}
+          {profileData.name}
         </h1>
 
         <p className="hero-title">
-          {copy.heroTitle}
-        </p>
+  {profileData.title || copy.heroTitle}
+          </p>
 
         <p className="hero-description">
-          {copy.heroDescription}
+          {profileData.description || copy.heroDescription}
         </p>
 
         <div className="hero-actions">
@@ -291,7 +308,7 @@ function Hero({ language }) {
 
           <a
             className="button secondary"
-            href={profile.cvPath}
+            href={profileData.cvPath}
             target="_blank"
             rel="noreferrer"
           >
@@ -304,7 +321,7 @@ function Hero({ language }) {
         <div className="social-links">
 
           <a
-            href={profile.github}
+            href={profileData.github}
             aria-label="GitHub"
             target="_blank"
             rel="noreferrer"
@@ -314,7 +331,7 @@ function Hero({ language }) {
           </a>
 
           <a
-            href={profile.linkedin}
+            href={profileData.linkedin}
             aria-label="LinkedIn"
             target="_blank"
             rel="noreferrer"
@@ -327,11 +344,27 @@ function Hero({ language }) {
 
       </div>
 
+      <aside className="hero-skills-card">
+        <p className="hero-skills-label">
+          {language === 'tr'
+            ? 'Öne Çıkan Yetenekler'
+            : 'Featured Skills'}
+        </p>
+
+        <div className="hero-skills-list">
+          {featuredSkills.map((skill, index) => (
+            <span key={`${skill.name}-${index}`}>
+              {skill.name}
+            </span>
+          ))}
+        </div>
+      </aside>
+
       <div className="hero-photo-wrap">
         <div className="hero-photo-card">
           <img
-            src="/images/profile.jpg"
-            alt={`${profile.name} profile photo`}
+            src={profileData.profileImage || '/images/profile.jpg'}
+            alt={`${profileData.name} profile photo`}
           />
         </div>
       </div>
@@ -342,31 +375,10 @@ function Hero({ language }) {
 
 
 /* =========================================================
-   ÖNE ÇIKAN UZMANLIKLAR
-========================================================= */
-
-function ExpertiseStrip({ language }) {
-  const copy = ui[language];
-
-  return (
-    <section className="expertise-strip section-shell">
-      <p className="section-kicker">{copy.expertise}</p>
-
-      <div className="expertise-list">
-        <span><b>.NET:</b> C#, WinForms, DevExpress</span>
-        <span><b>{language === 'tr' ? 'Veritabanı' : 'Databases'}:</b> SQL Server, SQLite, LINQ to SQL</span>
-        <span><b>Web:</b> JavaScript, React, Node.js</span>
-      </div>
-    </section>
-  );
-}
-
-
-/* =========================================================
    HAKKIMDA
 ========================================================= */
 
-function AboutCard({ language }) {
+function AboutCard({ language, profileData }) {
   const copy = ui[language];
 
   return (
@@ -388,7 +400,7 @@ function AboutCard({ language }) {
       </div>
 
       <p>
-        {copy.aboutText}
+        {profileData.about || copy.aboutText}
       </p>
 
       <p>
@@ -420,8 +432,30 @@ function AboutCard({ language }) {
    YETENEKLER
 ========================================================= */
 
-function SkillsCard({ language }) {
+function SkillsCard({
+  language,
+  skillsData,
+}) {
   const copy = ui[language];
+
+  const groupedSkills = skillsData.reduce(
+    (groups, skill) => {
+      const category =
+        skill.category?.trim() ||
+        (language === 'tr'
+          ? 'Diğer'
+          : 'Other');
+
+      if (!groups[category]) {
+        groups[category] = [];
+      }
+
+      groups[category].push(skill);
+
+      return groups;
+    },
+    {}
+  );
 
   return (
     <article
@@ -442,18 +476,31 @@ function SkillsCard({ language }) {
       </div>
 
       <div className="skill-groups">
-        {skills.map((group, index) => (
-          <div className="skill-group" key={group.title}>
-            <h3>{translatedSkills[language][index]}</h3>
-            <div className="chips">
-              {group.items.map((skill) => (
-                <span className="chip" key={skill}>
-                  {skill}
-                </span>
-              ))}
+        {Object.entries(groupedSkills).map(
+          ([category, categorySkills]) => (
+            <div
+              className="skill-group"
+              key={category}
+            >
+              <h3>
+                {category}
+              </h3>
+
+              <div className="chips">
+                {categorySkills.map(
+                  (skill) => (
+                    <span
+                      className="chip"
+                      key={skill.id}
+                    >
+                      {skill.name}
+                    </span>
+                  )
+                )}
+              </div>
             </div>
-          </div>
-        ))}
+          )
+        )}
       </div>
 
     </article>
@@ -489,8 +536,10 @@ function FactoryIllustration() {
    ÖNE ÇIKAN PROJE
 ========================================================= */
 
-function FeaturedProject({ onOpen }) {
-  const project = projects[0];
+function FeaturedProject({ onOpen, projectsData }) {
+  const project =
+    projectsData.find((item) => item.is_featured) ||
+    projectsData[0];
 
   if (!project) {
     return null;
@@ -556,8 +605,36 @@ function FeaturedProject({ onOpen }) {
    DENEYİM
 ========================================================= */
 
-function ExperienceTimeline({ language }) {
+function ExperienceTimeline({ language, experienceData }) {
   const copy = ui[language];
+  const formatDate = (date) => {
+    if (!date) {
+      return '';
+    }
+
+    return new Intl.DateTimeFormat(
+      language === 'en' ? 'en-US' : 'tr-TR',
+      {
+        month: '2-digit',
+        year: 'numeric',
+      }
+    ).format(new Date(`${date}T00:00:00`));
+  };
+
+  const databaseExperience = experienceData.map((item) => ({
+    period: item.is_current
+      ? `${formatDate(item.start_date)} - ${language === 'en' ? 'Present' : 'Devam Ediyor'}`
+      : `${formatDate(item.start_date)} - ${formatDate(item.end_date)}`,
+    title: language === 'en'
+      ? `${item.position} - ${item.company_name}`
+      : `${item.position} - ${item.company_name}`,
+    description: item.description || '',
+  }));
+
+  const experiences = databaseExperience.length > 0
+    ? databaseExperience
+    : experience;
+
   const experienceText = language === 'en'
     ? {
         period: '40 business days · Summer internship',
@@ -588,9 +665,9 @@ function ExperienceTimeline({ language }) {
 
       </div>
 
-      {experience.length > 0 ? (
+      {experiences.length > 0 ? (
 
-        experience.map((item, index) => (
+        experiences.map((item, index) => (
 
           <div
             className="timeline-item"
@@ -653,7 +730,7 @@ function ExperienceTimeline({ language }) {
    PROJELER
 ========================================================= */
 
-function ProjectsShowcase({ onOpen, language }) {
+function ProjectsShowcase({ onOpen, language, projectsData }) {
   const copy = ui[language];
 
   return (
@@ -667,14 +744,14 @@ function ProjectsShowcase({ onOpen, language }) {
       </div>
 
       <div className="project-grid">
-        {projects.map((project, index) => (
+        {projectsData.map((project, index) => (
           <article className={`showcase-project ${index === 0 ? 'featured' : ''}`} key={project.id}>
             <div className="project-number">0{index + 1}</div>
             <div className="project-content">
               <h3>{getProjectText(project, language).title}</h3>
               <p>{getProjectText(project, language).description}</p>
               <div className="project-tags">
-                {project.technologies.slice(0, 5).map((technology) => (
+                {(project.technologies || []).slice(0, 5).map((technology) => (
                   <span className="mini-tag" key={technology}>{technology}</span>
                 ))}
               </div>
@@ -695,9 +772,9 @@ function ProjectsShowcase({ onOpen, language }) {
    SERTİFİKALAR
 ========================================================= */
 
-function CertificatesSection({ language }) {
+function CertificatesSection({ language, certificatesData }) {
   const copy = ui[language];
-  const certificates = [
+  const staticCertificates = [
     language === 'en'
       ? { title: 'YetGen – 21st Century Awareness Education Program', description: 'A training program focused on career planning, leadership, presentation skills, and algorithmic thinking through teamwork.' }
       : { title: 'YetGen – 21st Century Awareness Education Program', description: 'Kariyer planlama, liderlik, sunum becerileri ve algoritmik düşünme üzerine takım çalışmalarıyla desteklenen eğitim programı.' },
@@ -705,6 +782,10 @@ function CertificatesSection({ language }) {
       ? { title: 'Habitat Association – Yarını Kodlayanlar', description: 'Training on Python fundamentals, data types, conditions, loops, functions, and basic data structures.' }
       : { title: 'Habitat Association – Yarını Kodlayanlar', description: 'Python temelleri, veri tipleri, koşullar, döngüler, fonksiyonlar ve temel veri yapıları üzerine eğitim.' },
   ];
+
+  const certificates = certificatesData.length > 0
+    ? certificatesData
+    : staticCertificates;
 
   return (
     <section className="certificates-section section-shell" id="certificates">
@@ -733,7 +814,7 @@ function CertificatesSection({ language }) {
    İLETİŞİM
 ========================================================= */
 
-function ContactCard({ language }) {
+function ContactCard({ language, profileData }) {
   const copy = ui[language];
 
   return (
@@ -762,7 +843,7 @@ function ContactCard({ language }) {
 
         <a
           className="button primary"
-          href={`mailto:${profile.email}`}
+          href={`mailto:${profileData.email}`}
         >
             {copy.sendMessage}
           <ArrowUpRight size={17} />
@@ -775,7 +856,7 @@ function ContactCard({ language }) {
               {copy.email}
             </small>
 
-            {profile.email}
+            {profileData.email}
           </span>
 
           <span>
@@ -783,7 +864,7 @@ function ContactCard({ language }) {
               {copy.location}
             </small>
 
-            {profile.location}
+            {profileData.location}
           </span>
 
         </div>
@@ -880,6 +961,20 @@ function ProjectDetail({ onClose, project, language }) {
             </a>
           )}
 
+          {project.liveUrl && (
+            <a
+              className="button secondary detail-github"
+              href={project.liveUrl}
+              target="_blank"
+              rel="noreferrer"
+            >
+              <ArrowUpRight size={17} />
+              {language === 'tr'
+                ? 'Canlı Siteyi Gör'
+                : 'View Live Site'}
+            </a>
+          )}
+
         </div>
 
       </div>
@@ -897,6 +992,277 @@ export default function App() {
   const [detailOpen, setDetailOpen] = useState(false);
   const [selectedProject, setSelectedProject] = useState(null);
   const [language, setLanguage] = useState('tr');
+
+  const [profileData, setProfileData] = useState(profile);
+  const [projectsData, setProjectsData] = useState(staticProjects);
+  const [skillsData, setSkillsData] = useState([]);
+  const [experienceData, setExperienceData] = useState([]);
+  const [certificatesData, setCertificatesData] = useState([]);
+
+  useEffect(() => {
+    async function loadProfile() {
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('*')
+        .order('id', { ascending: true })
+        .limit(1)
+        .maybeSingle();
+
+      if (error) {
+        console.error(
+          'Profil bilgileri alınamadı:',
+          error
+        );
+
+        return;
+      }
+
+      if (!data) {
+        return;
+      }
+
+      setProfileData({
+      name:
+        data.full_name ||
+        profile.name,
+
+      monogram:
+        profile.monogram,
+
+      title:
+        data.title ||
+        profile.title,
+
+      description:
+        data.short_description ||
+        profile.description,
+
+      about:
+        data.about ||
+        '',
+
+      email:
+        data.email ||
+        profile.email,
+
+      location:
+        data.location ||
+        profile.location,
+
+      github:
+        data.github_url ||
+        profile.github,
+
+      linkedin:
+        data.linkedin_url ||
+        profile.linkedin,
+
+      profileImage:
+        data.profile_image_url ||
+        '/images/profile.jpg',
+
+      cvPath:
+        data.cv_url ||
+        profile.cvPath,
+      });
+    }
+
+    loadProfile();
+  }, []);
+
+  useEffect(() => {
+    async function loadProjects() {
+      const { data: projectRows, error: projectsError } = await supabase
+        .from('projects')
+        .select('*')
+        .eq('is_active', true)
+        .order('display_order', { ascending: true })
+        .order('id', { ascending: true });
+
+      if (projectsError) {
+        console.error(
+          'Projeler alınamadı:',
+          projectsError
+        );
+        return;
+      }
+
+      if (!projectRows || projectRows.length === 0) {
+        return;
+      }
+
+      const projectIds = projectRows.map(
+        (project) => project.id
+      );
+
+      const [
+        technologiesResult,
+        featuresResult,
+        technologyCatalogResult,
+      ] = await Promise.all([
+        supabase
+          .from('project_technologies')
+          .select('project_id, technology_id')
+          .in('project_id', projectIds),
+
+        supabase
+          .from('project_features')
+          .select('project_id, feature_name')
+          .in('project_id', projectIds),
+
+        supabase
+          .from('technologies')
+          .select('id, name'),
+      ]);
+
+      if (technologiesResult.error) {
+        console.error(
+          'Proje teknolojileri alınamadı:',
+          technologiesResult.error
+        );
+      }
+
+      if (featuresResult.error) {
+        console.error(
+          'Proje özellikleri alınamadı:',
+          featuresResult.error
+        );
+      }
+
+      const technologyRows =
+        technologiesResult.data || [];
+
+      const featureRows =
+        featuresResult.data || [];
+
+      const technologyNames = new Map(
+        (technologyCatalogResult.data || [])
+          .map((item) => [item.id, item.name])
+      );
+
+      const mappedProjects = projectRows.map(
+        (project) => ({
+          id: project.slug || String(project.id),
+          databaseId: project.id,
+          slug: project.slug,
+          title: project.title,
+          shortTitle: project.title,
+          short_description:
+            project.short_description || '',
+          description:
+            project.description ||
+            project.short_description ||
+            '',
+          image_url:
+            project.image_url || '',
+          github:
+            project.github_url || '',
+          liveUrl:
+            project.live_url || '',
+          is_featured:
+            project.is_featured,
+          is_active:
+            project.is_active,
+          display_order:
+            project.display_order ?? 0,
+          technologies: technologyRows
+            .filter(
+              (item) =>
+                item.project_id === project.id
+            )
+            .map(
+              (item) => technologyNames.get(item.technology_id)
+            ),
+          features: featureRows
+            .filter(
+              (item) =>
+                item.project_id === project.id
+            )
+            .map(
+              (item) => item.feature_name
+            ),
+        })
+      );
+
+      setProjectsData(mappedProjects);
+    }
+
+    loadProjects();
+  }, []);
+
+  useEffect(() => {
+    async function loadSkills() {
+      const { data, error } = await supabase
+        .from('technologies')
+        .select(
+          'id, name, category, icon_name, display_order, is_active'
+        )
+        .eq('is_active', true)
+        .order('display_order', { ascending: true })
+        .order('id', { ascending: true });
+
+      if (error) {
+        console.error(
+          'Yetenekler alınamadı:',
+          error
+        );
+
+        return;
+      }
+
+      setSkillsData(data ?? []);
+    }
+
+    loadSkills();
+  }, []);
+
+  useEffect(() => {
+    async function loadCertificates() {
+      const { data, error } = await supabase
+        .from('certificates')
+        .select('*')
+        .eq('is_active', true)
+        .order('display_order', { ascending: true })
+        .order('id', { ascending: true });
+
+      if (error) {
+        console.error(
+          'Sertifikalar alınamadı:',
+          error
+        );
+
+        return;
+      }
+
+      setCertificatesData(data ?? []);
+    }
+
+    loadCertificates();
+  }, []);
+
+  useEffect(() => {
+    async function loadExperiences() {
+      const { data, error } = await supabase
+        .from('experiences')
+        .select('company_name, position, start_date, end_date, is_current, description, display_order, is_active')
+        .eq('is_active', true)
+        .order('display_order', { ascending: true })
+        .order('start_date', { ascending: false });
+
+      if (error) {
+        console.error(
+          'Deneyimler alınamadı:',
+          error
+        );
+
+        return;
+      }
+
+      setExperienceData(data ?? []);
+    }
+
+    loadExperiences();
+  }, []);
 
   useEffect(() => {
     document.documentElement.lang = language;
@@ -952,7 +1318,7 @@ export default function App() {
   }, [detailOpen]);
 
 
-  function openProject(project = projects[0]) {
+  function openProject(project = projectsData[0]) {
 
     setSelectedProject(project);
 
@@ -1000,6 +1366,7 @@ export default function App() {
         activeSection={activeSection}
         onNavigate={handleNavigation}
         language={language}
+        profileData={profileData}
         onToggleLanguage={() => setLanguage((current) => current === 'tr' ? 'en' : 'tr')}
       />
 
@@ -1019,28 +1386,45 @@ export default function App() {
 
         <main>
 
-          <Hero language={language} />
-
-          <ExpertiseStrip language={language} />
-
+          <Hero
+            language={language}
+            profileData={profileData}
+            skillsData={skillsData}
+          />
           <section className="cards-grid section-shell">
 
-            <AboutCard language={language} />
+            <AboutCard
+              language={language}
+              profileData={profileData}
+            />
 
-            <SkillsCard language={language} />
+            <SkillsCard
+              language={language}
+              skillsData={skillsData}
+            />
 
           </section>
 
           <ProjectsShowcase
             onOpen={openProject}
             language={language}
+            projectsData={projectsData}
           />
 
-          <ExperienceTimeline language={language} />
+          <ExperienceTimeline
+            language={language}
+            experienceData={experienceData}
+          />
 
-          <CertificatesSection language={language} />
+          <CertificatesSection
+            language={language}
+            certificatesData={certificatesData}
+          />
 
-          <ContactCard language={language} />
+          <ContactCard
+            language={language}
+            profileData={profileData}
+          />
 
         </main>
 
@@ -1051,11 +1435,11 @@ export default function App() {
         <div className="footer-inner">
 
           <span className="brand">
-            {profile.monogram}
+            {profileData.monogram}
           </span>
 
           <span>
-            © {new Date().getFullYear()} {profile.name}
+            © {new Date().getFullYear()} {profileData.name}
           </span>
 
           <span>
