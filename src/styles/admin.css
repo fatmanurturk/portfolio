@@ -413,6 +413,52 @@
     rgba(22, 119, 232, 0.08);
 }
 
+.admin-image-upload-group {
+  padding: 18px;
+  border: 1px dashed #9ed5da;
+  border-radius: 12px;
+  background: #f5fcfc;
+}
+
+.admin-image-upload-group input[type='file'] {
+  padding: 11px;
+  border-style: dashed;
+  background: #ffffff;
+  cursor: pointer;
+}
+
+.admin-field-hint {
+  color: #647286;
+  font-size: 12px;
+}
+
+.admin-image-preview {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-top: 12px;
+  padding: 10px;
+  border: 1px solid #d8e7eb;
+  border-radius: 9px;
+  background: #ffffff;
+}
+
+.admin-image-preview img {
+  width: 76px;
+  height: 56px;
+  object-fit: cover;
+  border-radius: 6px;
+  background: #10233b;
+}
+
+.admin-image-preview span {
+  overflow: hidden;
+  color: #526174;
+  font-size: 12px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .admin-form-full {
   grid-column: 1 / -1;
 }

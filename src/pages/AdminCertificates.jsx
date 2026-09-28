@@ -155,6 +155,7 @@ export default function AdminCertificates() {
           <button onClick={() => navigate('/admin/skills')}>Yetenekler</button>
           <button onClick={() => navigate('/admin/experiences')}>Deneyimler</button>
           <button className="active">Sertifikalar</button>
+          <button onClick={() => navigate('/admin/blog')}>Blog</button>
           <button onClick={() => navigate('/admin/cv')}>CV</button>
         </nav>
 

@@ -104,6 +104,7 @@ export default function AdminCv() {
           <button onClick={() => navigate('/admin/skills')}>Yetenekler</button>
           <button onClick={() => navigate('/admin/experiences')}>Deneyimler</button>
           <button onClick={() => navigate('/admin/certificates')}>Sertifikalar</button>
+          <button onClick={() => navigate('/admin/blog')}>Blog</button>
           <button className="active">CV</button>
         </nav>
 

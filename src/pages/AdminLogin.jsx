@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { supabase } from '../lib/supabase';
+import { supabase, isSupabaseConfigured } from '../lib/supabase';
 import '../styles/admin.css';
 
 export default function AdminLogin() {
@@ -93,6 +93,22 @@ export default function AdminLogin() {
           Portfolyo içeriğini yönetmek için
           hesabınızla giriş yapın.
         </p>
+
+        {!isSupabaseConfigured && (
+          <div
+            className="admin-error"
+            style={{
+              marginBottom: '18px',
+              backgroundColor: 'rgba(245, 158, 11, 0.1)',
+              borderColor: 'rgba(245, 158, 11, 0.4)',
+              color: '#d97706',
+              textAlign: 'left',
+              lineHeight: '1.5',
+            }}
+          >
+            ⚠️ <strong>Supabase Bağlantısı Eksik:</strong> <code>.env</code> dosyasında <code>VITE_SUPABASE_URL</code> ve <code>VITE_SUPABASE_PUBLISHABLE_KEY</code> tanımlı değil. Lütfen kök dizindeki <code>.env.example</code> dosyasını <code>.env</code> olarak kopyalayıp anahtarlarınızı girin.
+          </div>
+        )}
 
         <form
           className="admin-login-form"

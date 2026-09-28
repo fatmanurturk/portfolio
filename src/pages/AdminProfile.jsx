@@ -16,9 +16,12 @@ export default function AdminProfile() {
     location: '',
     github_url: '',
     linkedin_url: '',
+    instagram_url: '',
+    profile_image_url: '',
   });
 
   const [profileId, setProfileId] = useState(null);
+  const [imageFile, setImageFile] = useState(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState('');
@@ -56,6 +59,8 @@ export default function AdminProfile() {
         location: data.location ?? '',
         github_url: data.github_url ?? '',
         linkedin_url: data.linkedin_url ?? '',
+        instagram_url: data.instagram_url ?? '',
+        profile_image_url: data.profile_image_url ?? '',
       });
     }
 
@@ -71,6 +76,44 @@ export default function AdminProfile() {
     }));
   };
 
+  const uploadProfileImage = async () => {
+    if (!imageFile) {
+      return profile.profile_image_url.trim() || null;
+    }
+
+    if (!imageFile.type.startsWith('image/')) {
+      throw new Error('Lütfen geçerli bir görsel dosyası seçin.');
+    }
+
+    if (imageFile.size > 5 * 1024 * 1024) {
+      throw new Error('Görsel dosyası 5 MB boyutundan küçük olmalıdır.');
+    }
+
+    const extension = imageFile.name.split('.').pop()?.toLowerCase() || 'jpg';
+    const filePath = `profile/${crypto.randomUUID()}.${extension}`;
+    const { error: uploadError } = await supabase.storage
+      .from('project-images')
+      .upload(filePath, imageFile, {
+        cacheControl: '3600',
+        contentType: imageFile.type,
+        upsert: false,
+      });
+
+    if (uploadError) {
+      throw new Error(
+        uploadError.message.includes('Bucket not found')
+          ? 'project-images Storage bucket bulunamadı. Supabase Storage bölümünde public bir project-images bucket oluşturun.'
+          : `Görsel yüklenemedi: ${uploadError.message}`
+      );
+    }
+
+    const { data } = supabase.storage
+      .from('project-images')
+      .getPublicUrl(filePath);
+
+    return data.publicUrl;
+  };
+
   const handleSave = async (event) => {
     event.preventDefault();
 
@@ -82,40 +125,58 @@ export default function AdminProfile() {
     setSaving(true);
     setMessage('');
 
-    let result;
+    try {
+      let finalImageUrl = profile.profile_image_url.trim();
 
-    if (profileId) {
-      result = await supabase
-        .from('profiles')
-        .update({
-          ...profile,
-          updated_at: new Date().toISOString(),
-        })
-        .eq('id', profileId);
-    } else {
-      result = await supabase
-        .from('profiles')
-        .insert({
-          ...profile,
-          updated_at: new Date().toISOString(),
-        })
-        .select()
-        .single();
-    }
+      if (imageFile) {
+        finalImageUrl = await uploadProfileImage();
+      }
 
-    if (result.error) {
-      console.error(result.error);
-      setMessage('Profil kaydedilirken bir hata oluştu.');
+      const payload = {
+        ...profile,
+        profile_image_url: finalImageUrl || null,
+        updated_at: new Date().toISOString(),
+      };
+
+      let result;
+
+      if (profileId) {
+        result = await supabase
+          .from('profiles')
+          .update(payload)
+          .eq('id', profileId);
+      } else {
+        result = await supabase
+          .from('profiles')
+          .insert(payload)
+          .select()
+          .single();
+      }
+
+      if (result.error) {
+        console.error(result.error);
+        setMessage(`Profil kaydedilirken bir hata oluştu: ${result.error.message}`);
+        setSaving(false);
+        return;
+      }
+
+      if (!profileId && result.data) {
+        setProfileId(result.data.id);
+      }
+
+      setProfile((current) => ({
+        ...current,
+        profile_image_url: finalImageUrl || '',
+      }));
+      setImageFile(null);
+
+      setMessage('Profil bilgileri başarıyla kaydedildi.');
+    } catch (error) {
+      console.error(error);
+      setMessage(error.message || 'Profil kaydedilirken bir hata oluştu.');
+    } finally {
       setSaving(false);
-      return;
     }
-
-    if (!profileId && result.data) {
-      setProfileId(result.data.id);
-    }
-
-    setMessage('Profil bilgileri başarıyla kaydedildi.');
-    setSaving(false);
   };
 
   const handleLogout = async () => {
@@ -128,9 +189,7 @@ export default function AdminProfile() {
 
   return (
     <main className="admin-dashboard">
-
       <aside className="admin-sidebar">
-
         <div className="admin-sidebar-logo">
           FNT.
         </div>
@@ -144,33 +203,27 @@ export default function AdminProfile() {
             Profil
           </button>
 
-          <button
-  onClick={() => navigate('/admin/projects')}
->
-  Projeler
-</button>
+          <button onClick={() => navigate('/admin/projects')}>
+            Projeler
+          </button>
 
-          <button
-            onClick={() => navigate('/admin/skills')}
-          >
+          <button onClick={() => navigate('/admin/skills')}>
             Yetenekler
           </button>
 
-          <button
-            onClick={() => navigate('/admin/experiences')}
-          >
+          <button onClick={() => navigate('/admin/experiences')}>
             Deneyimler
           </button>
 
-          <button
-            onClick={() => navigate('/admin/certificates')}
-          >
+          <button onClick={() => navigate('/admin/certificates')}>
             Sertifikalar
           </button>
 
-          <button
-            onClick={() => navigate('/admin/cv')}
-          >
+          <button onClick={() => navigate('/admin/blog')}>
+            Blog
+          </button>
+
+          <button onClick={() => navigate('/admin/cv')}>
             CV
           </button>
         </nav>
@@ -181,13 +234,10 @@ export default function AdminProfile() {
         >
           Çıkış Yap
         </button>
-
       </aside>
 
       <section className="admin-content">
-
         <header className="admin-content-header">
-
           <div>
             <p>Yönetim Paneli</p>
             <h1>Profil</h1>
@@ -199,18 +249,14 @@ export default function AdminProfile() {
           >
             Siteyi Görüntüle
           </button>
-
         </header>
 
         <div className="admin-welcome-card">
-
           <h2>Profil Bilgileri</h2>
-
           <p>
             Portfolyo sitesinde gösterilecek kişisel
-            bilgilerinizi buradan yönetebilirsiniz.
+            bilgilerinizi, profil fotoğrafınızı ve sosyal bağlantılarınızı buradan yönetebilirsiniz.
           </p>
-
         </div>
 
         {loading ? (
@@ -222,12 +268,9 @@ export default function AdminProfile() {
             className="admin-profile-card"
             onSubmit={handleSave}
           >
-
             <div className="admin-form-grid">
-
               <div className="admin-form-group">
                 <label>Ad Soyad</label>
-
                 <input
                   type="text"
                   name="full_name"
@@ -239,7 +282,6 @@ export default function AdminProfile() {
 
               <div className="admin-form-group">
                 <label>Unvan</label>
-
                 <input
                   type="text"
                   name="title"
@@ -249,9 +291,52 @@ export default function AdminProfile() {
                 />
               </div>
 
-              <div className="admin-form-group admin-form-full">
-                <label>Kısa Açıklama</label>
+              {/* PROFİL FOTOĞRAFI YÜKLEME VE ÖNİZLEME */}
+              <div className="admin-form-group admin-form-full admin-image-upload-group">
+                <label htmlFor="profile-image-file">Profil Fotoğrafı</label>
+                <input
+                  id="profile-image-file"
+                  type="file"
+                  accept="image/*"
+                  onChange={(event) => {
+                    setImageFile(event.target.files?.[0] ?? null);
+                  }}
+                />
+                <small className="admin-field-hint">
+                  PNG, JPG veya WEBP. En fazla 5 MB.
+                </small>
 
+                {(profile.profile_image_url || imageFile) && (
+                  <div className="admin-image-preview">
+                    <img
+                      src={imageFile ? URL.createObjectURL(imageFile) : (profile.profile_image_url || '/images/profile.jpg')}
+                      alt="Profil fotoğrafı önizleme"
+                    />
+                    <span>
+                      {imageFile
+                        ? imageFile.name
+                        : profile.profile_image_url || 'Varsayılan profil fotoğrafı (/images/profile.jpg)'}
+                    </span>
+                  </div>
+                )}
+              </div>
+
+              <div className="admin-form-group admin-form-full">
+                <label>Profil Fotoğrafı URL veya Dosya Yolu</label>
+                <input
+                  type="text"
+                  name="profile_image_url"
+                  value={profile.profile_image_url}
+                  onChange={handleChange}
+                  placeholder="Örn. /images/profile.jpg veya https://..."
+                />
+                <small className="admin-field-hint">
+                  Doğrudan görsel bağlantısı girebilir veya yukarıdaki alandan yeni bir fotoğraf yükleyebilirsiniz.
+                </small>
+              </div>
+
+              <div className="admin-form-group admin-form-full">
+                <label>Kısa Açıklama (Hero Bölümü)</label>
                 <textarea
                   name="short_description"
                   value={profile.short_description}
@@ -262,7 +347,6 @@ export default function AdminProfile() {
 
               <div className="admin-form-group admin-form-full">
                 <label>Hakkımda</label>
-
                 <textarea
                   name="about"
                   value={profile.about}
@@ -273,29 +357,28 @@ export default function AdminProfile() {
 
               <div className="admin-form-group">
                 <label>E-posta</label>
-
                 <input
                   type="email"
                   name="email"
                   value={profile.email}
                   onChange={handleChange}
+                  placeholder="ornek@domain.com"
                 />
               </div>
 
               <div className="admin-form-group">
                 <label>Konum</label>
-
                 <input
                   type="text"
                   name="location"
                   value={profile.location}
                   onChange={handleChange}
+                  placeholder="Örn. Elazığ, Türkiye"
                 />
               </div>
 
               <div className="admin-form-group">
-                <label>GitHub</label>
-
+                <label>GitHub Bağlantısı</label>
                 <input
                   type="url"
                   name="github_url"
@@ -306,8 +389,7 @@ export default function AdminProfile() {
               </div>
 
               <div className="admin-form-group">
-                <label>LinkedIn</label>
-
+                <label>LinkedIn Bağlantısı</label>
                 <input
                   type="url"
                   name="linkedin_url"
@@ -317,6 +399,16 @@ export default function AdminProfile() {
                 />
               </div>
 
+              <div className="admin-form-group">
+                <label>Instagram Bağlantısı</label>
+                <input
+                  type="url"
+                  name="instagram_url"
+                  value={profile.instagram_url}
+                  onChange={handleChange}
+                  placeholder="https://instagram.com/..."
+                />
+              </div>
             </div>
 
             {message && (
@@ -326,7 +418,6 @@ export default function AdminProfile() {
             )}
 
             <div className="admin-form-actions">
-
               <button
                 type="submit"
                 className="admin-save-button"
@@ -336,14 +427,10 @@ export default function AdminProfile() {
                   ? 'Kaydediliyor...'
                   : 'Değişiklikleri Kaydet'}
               </button>
-
             </div>
-
           </form>
         )}
-
       </section>
-
     </main>
   );
 }

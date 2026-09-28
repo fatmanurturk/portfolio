@@ -397,6 +397,7 @@ export default function AdminExperiences() {
           >
             Sertifikalar
           </button>
+          <button onClick={() => navigate('/admin/blog')}>Blog</button>
 
           <button
             onClick={() => navigate('/admin/cv')}

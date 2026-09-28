@@ -12,6 +12,7 @@ export default function AdminDashboard() {
     skills: null,
     experiences: null,
     certificates: null,
+    blog: null,
   });
 
   useEffect(() => {
@@ -21,6 +22,7 @@ export default function AdminDashboard() {
         ['technologies', 'skills'],
         ['experiences', 'experiences'],
         ['certificates', 'certificates'],
+        ['blog_posts', 'blog'],
       ];
 
       const results = await Promise.all(
@@ -111,6 +113,12 @@ export default function AdminDashboard() {
           </button>
 
           <button
+            onClick={() => navigate('/admin/blog')}
+          >
+            Blog
+          </button>
+
+          <button
             onClick={() => navigate('/admin/cv')}
           >
             CV
@@ -162,7 +170,7 @@ export default function AdminDashboard() {
 
           <p>
             Buradan portfolyonuzdaki profil,
-            proje, yetenek, deneyim ve sertifika
+            proje, yetenek, deneyim, sertifika ve blog
             bilgilerini yönetebilirsiniz.
           </p>
 
@@ -206,6 +214,15 @@ export default function AdminDashboard() {
             <small>Belgeleri yönet</small>
           </article>
 
+          <article
+            className="admin-stat-card"
+            onClick={() => navigate('/admin/blog')}
+          >
+            <span>Blog</span>
+            <strong>{stats.blog ?? '...'}</strong>
+            <small>Yazıları yönet</small>
+          </article>
+
         </div>
 
         <div className="admin-dashboard-grid">
@@ -227,6 +244,10 @@ export default function AdminDashboard() {
               <button onClick={() => navigate('/admin/experiences')}>
                 <strong>Deneyim ekle</strong>
                 <span>Kariyer geçmişini güncelle</span>
+              </button>
+              <button onClick={() => navigate('/admin/blog')}>
+                <strong>Yeni blog yazısı ekle</strong>
+                <span>Öğrendiklerini ve deneyimlerini paylaş</span>
               </button>
               <button onClick={() => navigate('/admin/profile')}>
                 <strong>Profili düzenle</strong>

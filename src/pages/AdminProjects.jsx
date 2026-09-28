@@ -29,6 +29,8 @@ export default function AdminProjects() {
 
   const [technologies, setTechnologies] = useState('');
   const [features, setFeatures] = useState('');
+  const [imageFile, setImageFile] = useState(null);
+  const [uploadingImage, setUploadingImage] = useState(false);
 
   useEffect(() => {
     loadProjects();
@@ -115,6 +117,7 @@ export default function AdminProjects() {
 
     setTechnologies('');
     setFeatures('');
+    setImageFile(null);
   };
 
   const loadProjectDetails = async (project) => {
@@ -145,6 +148,8 @@ export default function AdminProjects() {
       display_order:
         project.display_order ?? 0,
     });
+
+    setImageFile(null);
 
     setTechnologies('');
     setFeatures('');
@@ -314,6 +319,47 @@ export default function AdminProjects() {
     }
   };
 
+  const uploadProjectImage = async () => {
+    if (!imageFile) {
+      return form.image_url.trim() || null;
+    }
+
+    if (!imageFile.type.startsWith('image/')) {
+      throw new Error('Lütfen geçerli bir görsel dosyası seçin.');
+    }
+
+    if (imageFile.size > 5 * 1024 * 1024) {
+      throw new Error('Görsel dosyası 5 MB boyutundan küçük olmalıdır.');
+    }
+
+    setUploadingImage(true);
+
+    const extension = imageFile.name.split('.').pop()?.toLowerCase() || 'jpg';
+    const filePath = `projects/${crypto.randomUUID()}.${extension}`;
+    const { error: uploadError } = await supabase.storage
+      .from('project-images')
+      .upload(filePath, imageFile, {
+        cacheControl: '3600',
+        contentType: imageFile.type,
+        upsert: false,
+      });
+
+    if (uploadError) {
+      throw new Error(
+        uploadError.message.includes('Bucket not found')
+          ? 'project-images Storage bucket bulunamadı. Supabase Storage bölümünde public bir project-images bucket oluşturun.'
+          : `Görsel yüklenemedi: ${uploadError.message}`
+      );
+    }
+
+    const { data } = supabase.storage
+      .from('project-images')
+      .getPublicUrl(filePath);
+
+    setUploadingImage(false);
+    return data.publicUrl;
+  };
+
   const handleSave = async (event) => {
     event.preventDefault();
 
@@ -331,6 +377,7 @@ export default function AdminProjects() {
     setMessage('');
 
     try {
+      const imageUrl = await uploadProjectImage();
       let projectSlug = form.slug.trim();
       let slugSuffix = 1;
 
@@ -368,7 +415,7 @@ export default function AdminProjects() {
             description:
               form.description.trim() || null,
             image_url:
-              form.image_url.trim() || null,
+              imageUrl,
             github_url:
               form.github_url.trim() || null,
             live_url:
@@ -401,7 +448,7 @@ export default function AdminProjects() {
             description:
               form.description.trim() || null,
             image_url:
-              form.image_url.trim() || null,
+              imageUrl,
             github_url:
               form.github_url.trim() || null,
             live_url:
@@ -439,12 +486,13 @@ export default function AdminProjects() {
     } catch (error) {
       console.error(error);
 
-      setMessage(
-        editingProjectId
+      setMessage(error instanceof Error && error.message
+        ? error.message
+        : editingProjectId
           ? 'Proje güncellenirken bir hata oluştu.'
-          : 'Proje kaydedilirken bir hata oluştu.'
-      );
+          : 'Proje kaydedilirken bir hata oluştu.');
     } finally {
+      setUploadingImage(false);
       setSaving(false);
     }
   };
@@ -538,6 +586,7 @@ export default function AdminProjects() {
           >
             Sertifikalar
           </button>
+          <button onClick={() => navigate('/admin/blog')}>Blog</button>
 
           <button
             onClick={() => navigate('/admin/cv')}
@@ -649,8 +698,39 @@ export default function AdminProjects() {
               />
             </div>
 
+            <div className="admin-form-group admin-form-full admin-image-upload-group">
+              <label htmlFor="project-image-file">Proje Görseli</label>
+
+              <input
+                id="project-image-file"
+                type="file"
+                accept="image/*"
+                onChange={(event) => {
+                  setImageFile(event.target.files?.[0] ?? null);
+                }}
+              />
+
+              <small className="admin-field-hint">
+                PNG, JPG veya WEBP. En fazla 5 MB.
+              </small>
+
+              {(form.image_url || imageFile) && (
+                <div className="admin-image-preview">
+                  <img
+                    src={imageFile ? URL.createObjectURL(imageFile) : form.image_url}
+                    alt="Proje görseli önizleme"
+                  />
+                  <span>
+                    {imageFile
+                      ? imageFile.name
+                      : 'Mevcut proje görseli'}
+                  </span>
+                </div>
+              )}
+            </div>
+
             <div className="admin-form-group">
-              <label>Proje Görsel URL</label>
+              <label>Proje Görsel URL (isteğe bağlı)</label>
 
               <input
                 type="url"
@@ -781,7 +861,9 @@ export default function AdminProjects() {
               className="admin-save-button"
               disabled={saving}
             >
-              {saving
+              {uploadingImage
+                ? 'Görsel yükleniyor...'
+                : saving
                 ? 'Kaydediliyor...'
                 : editingProjectId
                   ? 'Değişiklikleri Kaydet'
